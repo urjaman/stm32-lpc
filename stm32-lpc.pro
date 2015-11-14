@@ -1,4 +1,4 @@
-update=Sun 08 Nov 2015 06:15:35 AM EET
+update=Sat 14 Nov 2015 03:48:50 PM EET
 version=1
 last_client=kicad
 [pcbnew]
@@ -59,5 +59,4 @@ LibName27=atmel
 LibName28=contrib
 LibName29=valves
 LibName30=pm49fl004
-LibName31=oscillator
-LibName32=stm32f042kx
+LibName31=stm32f042kx
