@@ -1,0 +1,8 @@
+EESchema-DOCLIB  Version 2.0
+#
+$CMP Pm49FL004
+D PMC Pm49FL004T 512kx8 LPC/FWH Flash
+K 512k flash rom
+$ENDCMP
+#
+#End Doc Library
