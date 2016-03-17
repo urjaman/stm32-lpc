@@ -4,14 +4,19 @@
 #define PORT_LED GPIOF
 #define PIN_LED GPIO0
 
+static void clocks_setup(void)
+{
+	/* Go Fast :) */
+	rcc_clock_setup_in_hsi48_out_48mhz();
+
+	/* Enable all GPIOs in this device. */
+	rcc_periph_clock_enable(RCC_GPIOA);
+	rcc_periph_clock_enable(RCC_GPIOB);
+	rcc_periph_clock_enable(RCC_GPIOF);
+}
+
 static void gpio_setup(void)
 {
-	/* Enable GPIOB clock. */
-	/* Manually: */
-	//RCC_AHBENR |= RCC_AHBENR_GPIOCEN;
-	/* Using API functions: */
-	rcc_periph_clock_enable(RCC_GPIOF);
-
 
 	/* Set GPIO6 (in GPIO port B) to 'output push-pull'. */
 	/* Using API functions: */
@@ -22,6 +27,7 @@ int main(void)
 {
 	int i;
 
+	clocks_setup();
 	gpio_setup();
 
 	/* Blink the LED (PC8) on the board. */
