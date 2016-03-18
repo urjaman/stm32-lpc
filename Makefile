@@ -21,7 +21,7 @@ INCLUDE_DIR	= $(OPENCM3_DIR)/include
 LIB_DIR		= $(OPENCM3_DIR)/lib
 # CFLAGS
 CFLAGS		+= -Os -fno-common -flto
-CFLAGS		+= -Wextra -Wshadow -Wimplicit-function-declaration -Wredundant-decls -Wmissing-prototypes -Wstrict-prototypes
+CFLAGS		+= -Wextra -Wshadow -Wimplicit-function-declaration -Wredundant-decls -Wmissing-prototypes -Wstrict-prototypes -Wno-main
 # C++ Flags ...
 CXXFLAGS	= $(CFLAGS)
 # C preprocessor stuff
@@ -42,6 +42,7 @@ all: elf size
 elf: $(BINARY).elf
 bin: $(BINARY).bin
 
+
 $(BINARY).elf:	$(OBJS) $(LDSCRIPT) $(LIB_DIR)/lib$(LIBNAME).a
 	$(Q)$(LD) $(LDFLAGS) $(ARCH_FLAGS) $(OBJS) $(LDLIBS) -o $(*).elf
 
@@ -55,7 +56,7 @@ $(LIB_DIR)/lib$(LIBNAME).a:
 	cd $(OPENCM3_DIR) && $(MAKE) DEBUG_FLAGS="-flto"
 
 program: bin
-	dfu-util -d 0483:df11 -a 0 --dfuse-address 0x08000000 -D $(BINARY).bin
+	dfu-util -a 0 --dfuse-address 0x08000000:leave -D $(BINARY).bin
 
 clean:
 	rm -f $(BINARY).elf *.bin *.o
