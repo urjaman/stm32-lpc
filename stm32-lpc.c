@@ -84,8 +84,21 @@ void main(void)
 	frser_main();
 }
 
-void signal_fault_c(uint32_t *hardfault_args) NORETURN __attribute__((externally_visible));
-void signal_fault_c(uint32_t *hardfault_args) {
+
+static void signal_fault(uint32_t *hardfault_args) __attribute__((naked));
+static void signal_fault(uint32_t *hardfault_args) {
+	asm volatile (
+	"movs r0,#4\n\t"
+	"movs r1, lr\n"
+	"tst r0, r1\n\t"
+	"beq 1f\n\t"
+	"mrs r0, psp\n\t"
+	"b 2f\n\t"
+	"1:\n\t"
+	"mrs r0, msp\n\t"
+	"2:\n\t"
+	);
+	/* Here the regs match with what was defined for the fn :) */
 	DBG("\r\nFAULT\r\n");
 	dbg_present_val("PC: ", hardfault_args[6] );
 	dbg_present_val(" LR: ", hardfault_args[5] );
@@ -96,41 +109,11 @@ void signal_fault_c(uint32_t *hardfault_args) {
 	dbg_present_val(" R2: ", hardfault_args[2] );
 	dbg_present_val(" R3: ", hardfault_args[3] );
 
-#if 0
-	dbg_present_val("\r\nCFSR: ", SCB_CFSR );
-
-	dbg_present_val(" HFSR: ", SCB_HFSR );
-	dbg_present_val(" DFSR: ", SCB_DFSR );
-	dbg_present_val(" AFSR: ", SCB_AFSR );
-
-	dbg_present_val("\r\nMMFAR: ", SCB_MMFAR );
-	dbg_present_val(" BFAR: ", SCB_BFAR );
-#endif
-
 	while (1) {
 		uint16_t v = gpio_get(GPIOB, GPIO8);
 		while (v == gpio_get(GPIOB, GPIO8));
 		try_go_bootloader();
 	}
-}
-
-
-static void signal_fault(void) __attribute__((naked));
-static void signal_fault(void) {
-  __asm volatile (
-    " movs r0,#4       \n"
-    " movs r1, lr      \n"
-    " tst r0, r1       \n"
-    " beq 1f         \n"
-    " mrs r0, psp      \n"
-    " b 2f          \n"
-    "1:               \n"
-    " mrs r0, msp      \n"
-    "2:              \n"
-    " ldr r1,[r0,#20]  \n"
-    " b signal_fault_c \n"
-    " bkpt #0          \n"
-  );
 }
 
 

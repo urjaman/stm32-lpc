@@ -20,7 +20,7 @@ OPENCM3_DIR	:= ./libopencm3
 INCLUDE_DIR	= $(OPENCM3_DIR)/include
 LIB_DIR		= $(OPENCM3_DIR)/lib
 # CFLAGS
-CFLAGS		+= -Os -fno-common -flto -I.
+CFLAGS		+= -Os -fno-common -flto -flto-partition=none -I.
 CFLAGS		+= -Wextra -Wshadow -Wimplicit-function-declaration -Wredundant-decls -Wmissing-prototypes -Wstrict-prototypes -Wno-main
 # C++ Flags ...
 CXXFLAGS	= $(CFLAGS)
@@ -33,11 +33,11 @@ LDLIBS		+= -l$(LIBNAME) -Wl,--start-group -lc -lgcc -lnosys -Wl,--end-group
 
 # Our actual source files...
 SOURCES		= stm32-lpc.c usbcdc.c extuart.c delay.c flash.c
+DEPS		= extuart.h flash.h main.h uart.h usbcdc.h
 
 #libfrser
 include	libfrser/Makefile.frser
 
-OBJS		= $(SOURCES:.c=.o)
 .SUFFIXES: .elf .bin .hex
 .SECONDEXPANSION:
 .SECONDARY:
@@ -47,14 +47,11 @@ elf: $(BINARY).elf
 bin: $(BINARY).bin
 
 
-$(BINARY).elf:	$(OBJS) $(LDSCRIPT) $(LIB_DIR)/lib$(LIBNAME).a
-	$(Q)$(LD) $(LDFLAGS) $(ARCH_FLAGS) $(OBJS) $(LDLIBS) -o $(*).elf
+$(BINARY).elf:	$(SOURCES) $(DEPS) $(LDSCRIPT) $(LIB_DIR)/lib$(LIBNAME).a
+	$(Q)$(CC) $(LDFLAGS) $(ARCH_FLAGS) $(CFLAGS) $(CPPFLAGS) $(SOURCES) $(LDLIBS) -o $(*).elf
 
 %.bin: %.elf
 	$(Q)$(OBJCOPY) -Obinary $(*).elf $(*).bin
-
-%.o: %.c
-	$(Q)$(CC) $(CFLAGS) $(CPPFLAGS) $(ARCH_FLAGS) -o $(*).o -c $(*).c
 
 $(LIB_DIR)/lib$(LIBNAME).a:
 	cd $(OPENCM3_DIR) && $(MAKE) DEBUG_FLAGS="-flto"
