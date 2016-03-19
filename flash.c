@@ -2,27 +2,31 @@
 #include "flash.h"
 #include "frser.h"
 #include "uart.h"
+#include "lpcfwh.h"
+#include "nibble.h"
+#include "extuart.h"
 
 static uint8_t flash_prot_in_use=0;
 
 void flash_set_safe(void) {
+	nibble_cleanup();
 }
-
 
 void flash_select_protocol(uint8_t allowed_protocols) {
 	allowed_protocols &= SUPPORTED_BUSTYPES;
-#if 0
 	flash_set_safe();
 	if ((allowed_protocols&CHIP_BUSTYPE_LPC)&&(lpc_test())) {
+		DBG("F:LPC\r\n");
 		flash_prot_in_use = CHIP_BUSTYPE_LPC;
 		return;
 	}
 	flash_set_safe();
 	if ((allowed_protocols&CHIP_BUSTYPE_FWH)&&(fwh_test())) {
+		DBG("F:FWH\r\n");
 		flash_prot_in_use = CHIP_BUSTYPE_FWH;
 		return;
 	}
-#endif
+	DBG("F:NONE\r\n");
 	flash_prot_in_use = 0;
 	return;
 }
@@ -32,9 +36,12 @@ uint8_t flash_read(uint32_t addr) {
 	switch (flash_prot_in_use) {
 		case 0:
 		default:
-		case CHIP_BUSTYPE_FWH:
-		case CHIP_BUSTYPE_LPC:
 			return 0xFF;
+		case CHIP_BUSTYPE_LPC:
+			return lpc_read_address(addr);
+		case CHIP_BUSTYPE_FWH:
+			return fwh_read_address(addr);
+
 	}
 }
 
@@ -45,6 +52,12 @@ void flash_readn(uint32_t addr, uint32_t len) {
 		default:
 			while (len--) SEND(0xFF);
 			return;
+		case CHIP_BUSTYPE_LPC:
+			while (len--) SEND(lpc_read_address(addr++));
+			return;
+		case CHIP_BUSTYPE_FWH:
+			while (len--) SEND(fwh_read_address(addr++));
+			return;
 	}
 }
 
@@ -53,5 +66,13 @@ void flash_write(uint32_t addr, uint8_t data) {
 		case 0:
 		default:
 			return;
+		case CHIP_BUSTYPE_LPC:
+			lpc_write_address(addr,data);
+			return;
+		case CHIP_BUSTYPE_FWH:
+			fwh_write_address(addr,data);
+			return;
+
 	}
 }
+

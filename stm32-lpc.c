@@ -85,20 +85,22 @@ void main(void)
 }
 
 
-static void signal_fault(uint32_t *hardfault_args) __attribute__((naked));
-static void signal_fault(uint32_t *hardfault_args) {
+static void signal_fault(void) __attribute__((naked));
+static void signal_fault(void) {
+	uint32_t *hardfault_args;
 	asm volatile (
 	"movs r0,#4\n\t"
 	"movs r1, lr\n"
 	"tst r0, r1\n\t"
 	"beq 1f\n\t"
-	"mrs r0, psp\n\t"
+	"mrs %[args], psp\n\t"
 	"b 2f\n\t"
 	"1:\n\t"
-	"mrs r0, msp\n\t"
+	"mrs %[args], msp\n\t"
 	"2:\n\t"
+	: [args] "=r" (hardfault_args)
 	);
-	/* Here the regs match with what was defined for the fn :) */
+
 	DBG("\r\nFAULT\r\n");
 	dbg_present_val("PC: ", hardfault_args[6] );
 	dbg_present_val(" LR: ", hardfault_args[5] );

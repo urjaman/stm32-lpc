@@ -37,6 +37,7 @@ DEPS		= extuart.h flash.h main.h uart.h usbcdc.h
 
 #libfrser
 include	libfrser/Makefile.frser
+include	libfrser/Makefile.lpcfwh
 
 .SUFFIXES: .elf .bin .hex
 .SECONDEXPANSION:
