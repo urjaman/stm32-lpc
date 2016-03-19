@@ -121,9 +121,9 @@ uint8_t clocked_nibble_read(void) {
 
 void nibble_start(uint8_t start) {
 	gpio_set(FRAME_PORT, FRAME);
+	nibble_set_dir(OUTPUT);
 	clock_high();
 	gpio_clear(FRAME_PORT, FRAME);
-	nibble_set_dir(OUTPUT);
 	nibble_write(start);
 	clock_cycle();
 	gpio_set(FRAME_PORT, FRAME);
