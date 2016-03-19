@@ -20,7 +20,7 @@ OPENCM3_DIR	:= ./libopencm3
 INCLUDE_DIR	= $(OPENCM3_DIR)/include
 LIB_DIR		= $(OPENCM3_DIR)/lib
 # CFLAGS
-CFLAGS		+= -Os -fno-common -flto
+CFLAGS		+= -Os -fno-common -flto -I.
 CFLAGS		+= -Wextra -Wshadow -Wimplicit-function-declaration -Wredundant-decls -Wmissing-prototypes -Wstrict-prototypes -Wno-main
 # C++ Flags ...
 CXXFLAGS	= $(CFLAGS)
@@ -32,8 +32,12 @@ LDFLAGS		+= --static -nostartfiles -L$(LIB_DIR) -T$(LDSCRIPT) -Wl,--gc-sections
 LDLIBS		+= -l$(LIBNAME) -Wl,--start-group -lc -lgcc -lnosys -Wl,--end-group
 
 # Our actual source files...
-OBJS		+= stm32-lpc.o usbcdc.o extuart.o
+SOURCES		= stm32-lpc.c usbcdc.c extuart.c delay.c flash.c
 
+#libfrser
+include	libfrser/Makefile.frser
+
+OBJS		= $(SOURCES:.c=.o)
 .SUFFIXES: .elf .bin .hex
 .SECONDEXPANSION:
 .SECONDARY:
@@ -59,7 +63,7 @@ program: bin
 	dfu-util -a 0 --dfuse-address 0x08000000:leave -D $(BINARY).bin
 
 clean:
-	rm -f $(BINARY).elf *.bin *.o
+	rm -f $(BINARY).elf *.bin *.o libfrser/*.o
 
 objdump: elf
 	$(OBJDUMP) -xdC $(BINARY).elf | less

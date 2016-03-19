@@ -7,6 +7,7 @@
 #include <libopencm3/usb/usbd.h>
 #include <libopencm3/usb/cdc.h>
 #include <libopencm3/stm32/desig.h>
+#include "main.h"
 
 #define UID_LEN  (12 * 2 + 1) /* 12-byte, each byte turnned into 2-byte hex, then '\0'. */
 
@@ -158,7 +159,7 @@ static const struct usb_config_descriptor config = {
 };
 
 /* Buffer to be used for control requests. */
-static uint8_t usbd_control_buffer[128];
+static uint8_t usbd_control_buffer[128] __attribute__((aligned(4)));
 
 static int cdcacm_control_request(usbd_device *usbd_dev, struct usb_setup_data *req, uint8_t **buf,
     uint16_t *len, void (**complete)(usbd_device *usbd_dev, struct usb_setup_data *req)) {
@@ -247,33 +248,27 @@ uint16_t usbcdc_write(void *buf, size_t len) {
   return ret;
 }
 
-uint16_t usbcdc_putc(char c) {
-  return usbcdc_write(&c, sizeof(c));
+void usbcdc_putc(uint8_t c) {
+  usbcdc_write(&c, sizeof(c));
 }
 
-uint16_t usbcdc_putu32(uint32_t word) {
-  //uint32_t l = __builtin_bswap32(word);
-  //return usbcdc_write(&l, sizeof(word));
-  /* We are using little endian, so no bit swap. */
-  return usbcdc_write(&word, sizeof(word));
-}
 
 /* We need to maintain a RX user buffer since libopencm3 will throw rest of the packet away. */
-char usbcdc_rxbuf[USBCDC_PKT_SIZE_DAT]; /* DMA needs access */
+static uint8_t usbcdc_rxbuf[USBCDC_PKT_SIZE_DAT];
 static uint8_t usbcdc_rxbuf_head = 0;
 static uint8_t usbcdc_rxbuf_tail = 0; /* Indicates empty buffer */
 
-uint16_t usbcdc_fetch_packet(void) {
+static uint16_t usbcdc_fetch_packet(void) {
   uint16_t ret;
   /* Blocking read. Assume RX user buffer is empty. TODO: consider setting a timeout */
-  while (0 == (ret = usbd_ep_read_packet(usbd_dev, EP_IN, usbcdc_rxbuf, USBCDC_PKT_SIZE_DAT)));
+  while (0 == (ret = usbd_ep_read_packet(usbd_dev, EP_IN, usbcdc_rxbuf, USBCDC_PKT_SIZE_DAT))) yield();
   usbcdc_rxbuf_head = 0;
   usbcdc_rxbuf_tail = ret;
   return ret;
 }
 
-char usbcdc_getc(void) {
-  char c;
+uint8_t usbcdc_getc(void) {
+  uint8_t c;
 
   if (usbcdc_rxbuf_head >= usbcdc_rxbuf_tail) {
     usbcdc_fetch_packet();
@@ -282,36 +277,6 @@ char usbcdc_getc(void) {
   c = usbcdc_rxbuf[usbcdc_rxbuf_head];
   usbcdc_rxbuf_head ++;
   return c;
-}
-
-uint32_t usbcdc_getu24(void) {
-  uint32_t val = 0;
-
-  val  = (uint32_t)usbcdc_getc() << 0;
-  val |= (uint32_t)usbcdc_getc() << 8;
-  val |= (uint32_t)usbcdc_getc() << 16;
-
-  return val;
-}
-
-uint32_t usbcdc_getu32(void) {
-  uint32_t val = 0;
-
-  val  = (uint32_t)usbcdc_getc() << 0;
-  val |= (uint32_t)usbcdc_getc() << 8;
-  val |= (uint32_t)usbcdc_getc() << 16;
-  val |= (uint32_t)usbcdc_getc() << 24;
-
-  return val;
-}
-
-uint8_t usbcdc_get_remainder(char **bufpp) {
-  uint8_t len = usbcdc_rxbuf_tail - usbcdc_rxbuf_head;
-
-  *bufpp = &(usbcdc_rxbuf[usbcdc_rxbuf_head]);
-  usbcdc_rxbuf_head = usbcdc_rxbuf_tail; /* Mark as used. */
-
-  return len;
 }
 
 /* Interrupts */

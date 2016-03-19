@@ -8,3 +8,5 @@ void extuart_sendstr(const char* p_);
 #else
 #define DBG(str)
 #endif
+
+void dbg_present_val(const char* reg, uint32_t v);
