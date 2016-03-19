@@ -239,6 +239,10 @@ void usbcdc_init(void) {
   nvic_enable_irq(NVIC_USB_IRQ);
 }
 
+static uint8_t usbcdc_txbuf[USBCDC_PKT_SIZE_DAT] __attribute__((aligned(4)));
+static uint8_t usbcdc_txbuf_cnt = 0;
+
+
 /* Application-level functions */
 uint16_t usbcdc_write(void *buf, size_t len) {
   uint16_t ret;
@@ -249,17 +253,25 @@ uint16_t usbcdc_write(void *buf, size_t len) {
 }
 
 void usbcdc_putc(uint8_t c) {
-  usbcdc_write(&c, sizeof(c));
+  usbcdc_txbuf[usbcdc_txbuf_cnt++] = c;
+  if (usbcdc_txbuf_cnt >= USBCDC_PKT_SIZE_DAT) {
+    usbcdc_write(usbcdc_txbuf, usbcdc_txbuf_cnt);
+    usbcdc_txbuf_cnt = 0;
+  }
 }
 
 
 /* We need to maintain a RX user buffer since libopencm3 will throw rest of the packet away. */
-static uint8_t usbcdc_rxbuf[USBCDC_PKT_SIZE_DAT];
+static uint8_t usbcdc_rxbuf[USBCDC_PKT_SIZE_DAT] __attribute__((aligned(4)));
 static uint8_t usbcdc_rxbuf_head = 0;
 static uint8_t usbcdc_rxbuf_tail = 0; /* Indicates empty buffer */
 
 static uint16_t usbcdc_fetch_packet(void) {
   uint16_t ret;
+  if (usbcdc_txbuf_cnt) {
+    usbcdc_write(usbcdc_txbuf, usbcdc_txbuf_cnt);
+    usbcdc_txbuf_cnt = 0;
+  }
   /* Blocking read. Assume RX user buffer is empty. TODO: consider setting a timeout */
   while (0 == (ret = usbd_ep_read_packet(usbd_dev, EP_IN, usbcdc_rxbuf, USBCDC_PKT_SIZE_DAT))) yield();
   usbcdc_rxbuf_head = 0;
