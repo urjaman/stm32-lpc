@@ -44,30 +44,18 @@ uint8_t nibble_read(void) {
 	return gpio_get(GPIOA, GPIO0|GPIO1|GPIO2|GPIO3);
 }
 
-static uint32_t max_loops = 0;
-static void checkloops(uint32_t l) {
-	if (max_loops < l) {
-		dbg_present_val("LPS:", l);
-		max_loops = l;
-	}
-}
-
 static void nibble_write_hi(uint8_t data) {
-	uint32_t loops = 0;
 	uint32_t bsrr = data >> 4;
 	bsrr = bsrr | ((bsrr ^ 0xF) << 16);
 	GPIOA_BSRR = bsrr;
-	while (nibble_read() != (bsrr&0xF)) loops++; // seems to work as a delay ;)
-	checkloops(loops);
+	while (nibble_read() != (bsrr&0xF)); // seems to work as a delay ;)
 }
 
 void nibble_write(uint8_t data) {
-	uint32_t loops = 0;
 	uint32_t bsrr = data & 0xF;
 	bsrr = bsrr | ((bsrr ^ 0xF) << 16);
 	GPIOA_BSRR = bsrr;
-	while (nibble_read() != (bsrr&0xF)) loops++; // seems to work as a delay ;)
-	checkloops(loops);
+	while (nibble_read() != (bsrr&0xF)); // seems to work as a delay ;)
 }
 
 #define clock_low() do { gpio_clear(CLK_PORT, CLK); nibdelay(); } while(0)
