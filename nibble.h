@@ -43,7 +43,8 @@ void nibble_write(uint8_t data);
 #define CLK_PORT			GPIOF
 #define CLK				GPIO1
 
-#define nibdelay() asm("nop\n\tnop\n\t")
+//#define nibdelay() asm("nop\n\tnop\n\t")
+#define nibdelay()
 
 #define clock_cycle() do { gpio_clear(CLK_PORT, CLK); nibdelay(); nibdelay(); gpio_set(CLK_PORT, CLK); nibdelay(); } while(0)
 
