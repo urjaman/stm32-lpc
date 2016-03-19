@@ -32,7 +32,7 @@ LDFLAGS		+= --static -nostartfiles -L$(LIB_DIR) -T$(LDSCRIPT) -Wl,--gc-sections
 LDLIBS		+= -l$(LIBNAME) -Wl,--start-group -lc -lgcc -lnosys -Wl,--end-group
 
 # Our actual source files...
-OBJS		+= stm32-lpc.o
+OBJS		+= stm32-lpc.o usbcdc.o extuart.o
 
 .SUFFIXES: .elf .bin .hex
 .SECONDEXPANSION:
