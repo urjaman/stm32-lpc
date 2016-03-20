@@ -82,8 +82,13 @@ bool nibble_init(void) {
 }
 
 void nibble_cleanup(void) {
-	/* TODO */
+	/* Safe state ... */
+	uint16_t porta_gpios_pu_out = FRAME|GPIO7;
+	uint16_t porta_gpios_out = GPIO15;
 	nibble_set_dir(INPUT);
+	gpio_mode_setup(GPIOA, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP, porta_gpios_pu_out);
+	gpio_mode_setup(GPIOA, GPIO_MODE_INPUT, GPIO_PUPD_NONE, porta_gpios_out);
+	gpio_mode_setup(CLK_PORT, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP, CLK);
 }
 
 void clocked_nibble_write(uint8_t value) {
@@ -105,6 +110,21 @@ uint8_t clocked_nibble_read(void) {
 	nibdelay();
 	nibdelay();
 	return nibble_read();
+}
+
+void nibble_abort(void) {
+	gpio_set(FRAME_PORT, FRAME);
+	nibble_set_dir(OUTPUT);
+	clock_high();
+	gpio_clear(FRAME_PORT, FRAME);
+	nibble_write(0xF);
+	clock_cycle();
+	clock_cycle();
+	clock_cycle();
+	clock_cycle();
+	gpio_set(FRAME_PORT, FRAME);
+	clock_cycle();
+	clock_cycle();
 }
 
 void nibble_start(uint8_t start) {

@@ -37,6 +37,7 @@ void nibble_hw_init(void);
 void nibble_set_dir(uint8_t dir);
 uint8_t nibble_read(void);
 void nibble_write(uint8_t data);
+void nibble_abort(void);
 
 /* This is just a part of the header because clock_cycle() macro needs it,
    not a part of the official interface. */
