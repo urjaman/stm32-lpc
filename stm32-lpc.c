@@ -9,6 +9,7 @@
 #include "extuart.h"
 #include "usbcdc.h"
 #include "frser.h"
+#include "debug.h"
 
 static void clocks_setup(void)
 {
@@ -40,7 +41,7 @@ static void gpio_setup(void)
 
 
 
-static void try_go_bootloader(void) {
+void try_go_bootloader(void) {
 	/* If BOOT1 is set, then just reset. */
 	if (gpio_get(GPIOB, GPIO8)) {
 		/* Signal bootloader entry with fast blink. */
@@ -62,6 +63,7 @@ void yield(void)
 		try_go_bootloader();
 		boot_gpio_val = gpio_get(GPIOB, GPIO8);
 	}
+	dbg_usb_flush();
 }
 
 void main(void) NORETURN NOINLINE;
@@ -85,42 +87,3 @@ void main(void)
 }
 
 
-static void signal_fault(void) __attribute__((naked));
-static void signal_fault(void) {
-	uint32_t *hardfault_args;
-	asm volatile (
-	"movs r0,#4\n\t"
-	"movs r1, lr\n"
-	"tst r0, r1\n\t"
-	"beq 1f\n\t"
-	"mrs %[args], psp\n\t"
-	"b 2f\n\t"
-	"1:\n\t"
-	"mrs %[args], msp\n\t"
-	"2:\n\t"
-	: [args] "=r" (hardfault_args)
-	);
-
-	DBG("\r\nFAULT\r\n");
-	dbg_present_val("PC: ", hardfault_args[6] );
-	dbg_present_val(" LR: ", hardfault_args[5] );
-	dbg_present_val(" PSR: ", hardfault_args[7] );
-	dbg_present_val(" R12: ", hardfault_args[4] );
-	dbg_present_val("\r\nR0: ", hardfault_args[0] );
-	dbg_present_val(" R1: ", hardfault_args[1] );
-	dbg_present_val(" R2: ", hardfault_args[2] );
-	dbg_present_val(" R3: ", hardfault_args[3] );
-
-	while (1) {
-		uint16_t v = gpio_get(GPIOB, GPIO8);
-		while (v == gpio_get(GPIOB, GPIO8));
-		try_go_bootloader();
-	}
-}
-
-
-void nmi_handler(void)
-__attribute__ ((alias ("signal_fault")));
-
-void hard_fault_handler(void)
-__attribute__ ((alias ("signal_fault")));

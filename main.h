@@ -10,6 +10,8 @@
 
 #define NOINLINE __attribute__((noinline))
 #define NORETURN  __attribute__((noreturn))
+#define ALIGNED __attribute__((aligned(4)))
+
 
 #define PORT_LED GPIOF
 #define PIN_LED GPIO0
@@ -18,3 +20,4 @@
 #define led_toggle() gpio_toggle(PORT_LED, PIN_LED)
 /* A thing to call when you're busy waiting. */
 void yield(void);
+void try_go_bootloader(void);

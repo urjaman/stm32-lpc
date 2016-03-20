@@ -36,14 +36,3 @@ void extuart_sendstr(const char* p_)
 }
 
 
-void dbg_present_val(const char* reg, uint32_t v) {
-	const char vals[16] = "0123456789ABCDEF";
-	char buf[9];
-	DBG(reg);
-	buf[8] = 0;
-	for (int i=7;i>=0;i--) {
-		buf[i] = vals[ v & 0xF ];
-		v = v >> 4;
-	}
-	DBG(buf);
-}

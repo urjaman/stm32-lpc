@@ -32,8 +32,8 @@ LDFLAGS		+= --static -nostartfiles -L$(LIB_DIR) -T$(LDSCRIPT) -Wl,--gc-sections
 LDLIBS		+= -l$(LIBNAME) -Wl,--start-group -lc -lgcc -lnosys -Wl,--end-group
 
 # Our actual source files...
-SOURCES		= stm32-lpc.c usbcdc.c extuart.c delay.c flash.c
-DEPS		= extuart.h flash.h main.h uart.h usbcdc.h
+SOURCES		= stm32-lpc.c usbcdc.c extuart.c delay.c flash.c debug.c
+DEPS		= extuart.h flash.h main.h uart.h usbcdc.h debug.h
 
 #libfrser
 include	libfrser/Makefile.frser

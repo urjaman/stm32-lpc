@@ -18,4 +18,8 @@ uint16_t usbcdc_write(void *buf, size_t len);
 void usbcdc_putc(uint8_t c);
 uint8_t usbcdc_getc(void);
 
+/* Debug channel */
+uint16_t usbcdc_write_ch3(void *buf, size_t len);
+
+
 #endif /* __STM32_VSERPOG_USB_CDC_H__ */
