@@ -51,12 +51,13 @@ void dbg_usb_flush(void)
 
 
 
-void dbg_present_val(const char* reg, uint32_t v) {
+void dbg_present_val(const char* reg, uint32_t v)
+{
 	const char vals[16] = "0123456789ABCDEF";
 	char buf[9];
 	DBG(reg);
 	buf[8] = 0;
-	for (int i=7;i>=0;i--) {
+	for (int i=7; i>=0; i--) {
 		buf[i] = vals[ v & 0xF ];
 		v = v >> 4;
 	}
@@ -65,19 +66,20 @@ void dbg_present_val(const char* reg, uint32_t v) {
 
 
 static void signal_fault(void) __attribute__((naked));
-static void signal_fault(void) {
+static void signal_fault(void)
+{
 	uint32_t *hardfault_args;
 	asm volatile (
-	"movs r0,#4\n\t"
-	"movs r1, lr\n"
-	"tst r0, r1\n\t"
-	"beq 1f\n\t"
-	"mrs %[args], psp\n\t"
-	"b 2f\n\t"
-	"1:\n\t"
-	"mrs %[args], msp\n\t"
-	"2:\n\t"
-	: [args] "=r" (hardfault_args)
+	        "movs r0,#4\n\t"
+	        "movs r1, lr\n"
+	        "tst r0, r1\n\t"
+	        "beq 1f\n\t"
+	        "mrs %[args], psp\n\t"
+	        "b 2f\n\t"
+	        "1:\n\t"
+	        "mrs %[args], msp\n\t"
+	        "2:\n\t"
+	        : [args] "=r" (hardfault_args)
 	);
 	usb_dbg_enabled = 0; // No trust in USB anymore
 

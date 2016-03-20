@@ -41,11 +41,12 @@ static void gpio_setup(void)
 
 
 
-void try_go_bootloader(void) {
+void try_go_bootloader(void)
+{
 	/* If BOOT1 is set, then just reset. */
 	if (gpio_get(GPIOB, GPIO8)) {
 		/* Signal bootloader entry with fast blink. */
-		for(int n=0;n<20;n++) {
+		for(int n=0; n<20; n++) {
 			led_toggle();
 			for (int i = 0; i < 100000; i++) __asm__("nop");
 		}

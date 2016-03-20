@@ -27,31 +27,36 @@
 #define FRAME				GPIO5
 
 
-void nibble_set_dir(uint8_t dir) {
-	uint32_t moder = GPIOA_MODER & ~( GPIO_MODE_MASK(0) | GPIO_MODE_MASK(1) | GPIO_MODE_MASK(2) | GPIO_MODE_MASK(3) );
+void nibble_set_dir(uint8_t dir)
+{
+	uint32_t moder = GPIOA_MODER & ~( GPIO_MODE_MASK(0) | GPIO_MODE_MASK(1) | GPIO_MODE_MASK(2) | GPIO_MODE_MASK(
+	                3) );
 	if (!dir) {
 		moder |= GPIO_MODE(0, GPIO_MODE_INPUT) | GPIO_MODE(1, GPIO_MODE_INPUT) |
-				GPIO_MODE(2, GPIO_MODE_INPUT) | GPIO_MODE(3, GPIO_MODE_INPUT);
+		         GPIO_MODE(2, GPIO_MODE_INPUT) | GPIO_MODE(3, GPIO_MODE_INPUT);
 	} else {
 		moder |= GPIO_MODE(0, GPIO_MODE_OUTPUT) | GPIO_MODE(1, GPIO_MODE_OUTPUT) |
-				GPIO_MODE(2, GPIO_MODE_OUTPUT) | GPIO_MODE(3, GPIO_MODE_OUTPUT);
+		         GPIO_MODE(2, GPIO_MODE_OUTPUT) | GPIO_MODE(3, GPIO_MODE_OUTPUT);
 	}
 	GPIOA_MODER = moder;
 
 }
 
-uint8_t nibble_read(void) {
+uint8_t nibble_read(void)
+{
 	return gpio_get(GPIOA, GPIO0|GPIO1|GPIO2|GPIO3);
 }
 
-static void nibble_write_hi(uint8_t data) {
+static void nibble_write_hi(uint8_t data)
+{
 	uint32_t bsrr = data >> 4;
 	bsrr = bsrr | ((bsrr ^ 0xF) << 16);
 	GPIOA_BSRR = bsrr;
 	while (nibble_read() != (bsrr&0xF)); // seems to work as a delay ;)
 }
 
-void nibble_write(uint8_t data) {
+void nibble_write(uint8_t data)
+{
 	uint32_t bsrr = data & 0xF;
 	bsrr = bsrr | ((bsrr ^ 0xF) << 16);
 	GPIOA_BSRR = bsrr;
@@ -63,7 +68,8 @@ void nibble_write(uint8_t data) {
 
 
 
-bool nibble_init(void) {
+bool nibble_init(void)
+{
 	int i;
 
 	clock_high();
@@ -81,7 +87,8 @@ bool nibble_init(void) {
 	return true;
 }
 
-void nibble_cleanup(void) {
+void nibble_cleanup(void)
+{
 	/* Safe state ... */
 	uint16_t porta_gpios_pu_out = FRAME|GPIO7;
 	uint16_t porta_gpios_out = GPIO15;
@@ -91,19 +98,22 @@ void nibble_cleanup(void) {
 	gpio_mode_setup(CLK_PORT, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP, CLK);
 }
 
-void clocked_nibble_write(uint8_t value) {
+void clocked_nibble_write(uint8_t value)
+{
 	clock_low();
 	nibble_write(value);
 	clock_high();
 }
 
-void clocked_nibble_write_hi(uint8_t value) {
+void clocked_nibble_write_hi(uint8_t value)
+{
 	clock_low();
 	nibble_write_hi(value);
 	clock_high();
 }
 
-uint8_t clocked_nibble_read(void) {
+uint8_t clocked_nibble_read(void)
+{
 	clock_cycle();
 	nibdelay();
 	nibdelay();
@@ -112,7 +122,8 @@ uint8_t clocked_nibble_read(void) {
 	return nibble_read();
 }
 
-void nibble_abort(void) {
+void nibble_abort(void)
+{
 	gpio_set(FRAME_PORT, FRAME);
 	nibble_set_dir(OUTPUT);
 	clock_high();
@@ -127,7 +138,8 @@ void nibble_abort(void) {
 	clock_cycle();
 }
 
-void nibble_start(uint8_t start) {
+void nibble_start(uint8_t start)
+{
 	gpio_set(FRAME_PORT, FRAME);
 	nibble_set_dir(OUTPUT);
 	clock_high();
@@ -137,7 +149,8 @@ void nibble_start(uint8_t start) {
 	gpio_set(FRAME_PORT, FRAME);
 }
 
-void nibble_hw_init(void) {
+void nibble_hw_init(void)
+{
 	/* port init */
 	uint16_t porta_gpios = GPIO0|GPIO1|GPIO2|GPIO3|FRAME|GPIO7|GPIO15;
 	uint16_t porta_gpios_pu_in = GPIO0|GPIO1|GPIO2|GPIO3;
