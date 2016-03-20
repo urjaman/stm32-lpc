@@ -12,6 +12,21 @@ void flash_set_safe(void) {
 	nibble_cleanup();
 }
 
+uint8_t flash_plausible_protocols(void) {
+	uint8_t prots = 0;
+	flash_set_safe();
+	if ((SUPPORTED_BUSTYPES&CHIP_BUSTYPE_LPC)&&(lpc_test())) {
+		prots |= CHIP_BUSTYPE_LPC;
+	}
+	flash_set_safe();
+	if ((SUPPORTED_BUSTYPES&CHIP_BUSTYPE_FWH)&&(fwh_test())) {
+		prots |= CHIP_BUSTYPE_FWH;
+	}
+	/* Just to restore the HW state. */
+	flash_select_protocol(flash_prot_in_use);
+	return prots;
+}
+
 void flash_select_protocol(uint8_t allowed_protocols) {
 	allowed_protocols &= SUPPORTED_BUSTYPES;
 	flash_set_safe();
@@ -56,7 +71,7 @@ void flash_readn(uint32_t addr, uint32_t len) {
 			while (len--) SEND(lpc_read_address(addr++));
 			return;
 		case CHIP_BUSTYPE_FWH:
-			while (len--) SEND(fwh_read_address(addr++));
+			fwh_read_n(addr, len);
 			return;
 	}
 }
