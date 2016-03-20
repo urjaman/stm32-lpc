@@ -6,6 +6,7 @@
 #include <libopencm3/cm3/nvic.h>
 #include <libopencm3/usb/usbd.h>
 #include <libopencm3/usb/cdc.h>
+#include <libopencm3/stm32/st_usbfs.h>
 #include <libopencm3/stm32/desig.h>
 #include "main.h"
 
@@ -374,25 +375,6 @@ static int cdcacm_control_request(usbd_device *usbd_dev, struct usb_setup_data *
     uint16_t *len, void (**complete)(usbd_device *usbd_dev, struct usb_setup_data *req)) {
   switch (req->bRequest) {
   case USB_CDC_REQ_SET_CONTROL_LINE_STATE: {
-#if 0
-	/* This code doesnt do anything actually?? */
-    /*
-     * This Linux cdc_acm driver requires this to be implemented
-     * even though it's optional in the CDC spec, and we don't
-     * advertise it in the ACM functional descriptor.
-     */
-    char local_buf[10];
-    struct usb_cdc_notification *notif = (void *)local_buf;
-
-    /* We echo signals back to host as notification. */
-    notif->bmRequestType = 0xa1;
-    notif->bNotification = USB_CDC_NOTIFY_SERIAL_STATE;
-    notif->wValue        = 0;
-    notif->wIndex        = 0;
-    notif->wLength       = 2;
-    local_buf[8]         = req->wValue & 3;
-    local_buf[9]         = 0;
-#endif
     return 1;
   }
   case USB_CDC_REQ_SET_LINE_CODING:
