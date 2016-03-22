@@ -9,11 +9,9 @@
 #include <libopencm3/stm32/st_usbfs.h>
 #include <libopencm3/stm32/desig.h>
 #include "main.h"
-#include "usbopt.h"
-#include "usbdma.h"
-#include "debug.h"
-#include "mutex.h"
+#include "usbll.h"
 
+#include "debug.h"
 
 #define UID_LEN  (12 * 2 + 1) /* 12-byte, each byte turnned into 2-byte hex, then '\0'. */
 
@@ -449,8 +447,6 @@ static const char *usb_strings[] = {
 
 void usbcdc_init(void)
 {
-//	usbdma_setup();
-
 	desig_get_unique_id_as_string(serial, UID_LEN);
 
 	usbd_dev = usbd_init(&st_usbfs_v2_usb_driver, &dev, &config, usb_strings, 3, usbd_control_buffer,
@@ -460,7 +456,6 @@ void usbcdc_init(void)
 	usbd_register_reset_callback(usbd_dev, cdcacm_reset);
 
 	/* NOTE: Must be called after USB setup since this enables calling usbd_poll(). */
-	nvic_set_priority(NVIC_USB_IRQ, 255);
 	nvic_enable_irq(NVIC_USB_IRQ);
 }
 
@@ -473,7 +468,7 @@ uint16_t usbcdc_write(void *buf, size_t len)
 	uint16_t ret;
 
 	/* Blocking write */
-	while (0 == (ret = usbopt_copy_tx(EP_OUT, buf, len)));
+	while (0 == (ret = usbd_ep_write_packet(usbd_dev, EP_OUT, buf, len)));
 	return ret;
 }
 
@@ -482,60 +477,70 @@ uint16_t usbcdc_write_ch3(void *buf, size_t len)
 	return usbd_ep_write_packet(usbd_dev, EP3_OUT, buf, len);
 }
 
-static uint8_t usbcdc_txbuf[USBCDC_PKT_SIZE_DAT] ALIGNED;
+static usbptr_t usbcdc_txbuf = 0;
+static uint8_t usbcdc_txbuf_bytebuf;
 static uint8_t usbcdc_txbuf_cnt = 0;
+
 void usbcdc_putc(uint8_t c)
 {
-	usbcdc_txbuf[usbcdc_txbuf_cnt++] = c;
+	while (!usbcdc_txbuf) {
+		usbcdc_txbuf = usb_ptr_get_tx(EP_OUT);
+		yield();
+	}
+	if (usbcdc_txbuf_cnt&1) {
+		uint16_t v = (c << 8) | usbcdc_txbuf_bytebuf;
+		*usbcdc_txbuf++ = v;
+	} else {
+		usbcdc_txbuf_bytebuf = c;
+	}
+	usbcdc_txbuf_cnt++;
 	if (usbcdc_txbuf_cnt >= USBCDC_PKT_SIZE_DAT) {
-		usbcdc_write(usbcdc_txbuf, usbcdc_txbuf_cnt);
+		usb_ptr_send(EP_OUT, usbcdc_txbuf_cnt);
 		usbcdc_txbuf_cnt = 0;
+		usbcdc_txbuf = 0;
 	}
 }
 
-/* We need to maintain a RX user buffer since libopencm3 will throw rest of the packet away. */
-static uint8_t usbcdc_rxbuf[USBCDC_PKT_SIZE_DAT] ALIGNED;
-static uint8_t usbcdc_rxbuf_cnt = 0;
-static uint8_t usbcdc_rxbuf_off = 0; /* Indicates empty buffer */
-
-static void ep0_rx(void)
-{
-	if (usbcdc_rxbuf_off>=usbcdc_rxbuf_cnt) {
-		usbcdc_rxbuf_off = 0;
-		usbcdc_rxbuf_cnt = usbopt_copy_rx(EP_IN, (uint16_t*)usbcdc_rxbuf);
-	}
-}
-
+static usbptr_t usbcdc_rxbuf = 0;
+static uint8_t usbcdc_rxbuf_cnt = 0; /* Indicates empty buffer */
+static uint8_t usbcdc_rxbuf_off = 0;
 
 static uint16_t usbcdc_fetch_packet(void)
 {
 	if (usbcdc_txbuf_cnt) {
-		usbcdc_write(usbcdc_txbuf, usbcdc_txbuf_cnt);
+		if (usbcdc_txbuf_cnt&1) {
+			uint16_t v = usbcdc_txbuf_bytebuf;
+			*usbcdc_txbuf = v;
+		}
+		usb_ptr_send(EP_OUT, usbcdc_txbuf_cnt);
 		usbcdc_txbuf_cnt = 0;
+		usbcdc_txbuf = 0;
 	}
-	//DBG("FTCH");
-	/* Blocking read. Assume RX user buffer is empty. TODO: consider setting a timeout */
-	while (usbcdc_rxbuf_off>=usbcdc_rxbuf_cnt) {
-		uint16_t dummy;
-		ep0_rx();
-		//DBG("X");
-		usbd_ep_read_packet(usbd_dev, EP2_IN, &dummy, 2);
-		//DBG("Y");
-		 usbd_ep_read_packet(usbd_dev, EP3_IN, &dummy, 2);
-		//DBG("Z");
+	usbcdc_rxbuf_off = 0;
+	usbcdc_rxbuf_cnt = 0;
+	while (!usbcdc_rxbuf_cnt) {
+		uint16_t l=0;
+		usbcdc_rxbuf = usb_ptr_get_rx(EP_IN, &l);
+		usbcdc_rxbuf_cnt = l;
 		yield();
+		/* Throw away EP2 and EP3 rx for now... */
+		if (usb_ptr_get_rx(EP2_IN, &l)) usb_ptr_rx_clear(EP2_IN);
+		if (usb_ptr_get_rx(EP3_IN, &l)) usb_ptr_rx_clear(EP3_IN);
 	}
-//	dbg_present_val("C: ", usbcdc_rxbuf_cnt);
-	return 1;
+	return usbcdc_rxbuf_cnt;
 }
 
 uint8_t usbcdc_getc(void)
 {
-	uint8_t c;
-	if (usbcdc_rxbuf_off>=usbcdc_rxbuf_cnt) {
+	if (usbcdc_rxbuf_off >= usbcdc_rxbuf_cnt) {
 		usbcdc_fetch_packet();
 	}
-	c = usbcdc_rxbuf[usbcdc_rxbuf_off++];
+	/* We know you can read in bytes, but not write in them... FIXME */
+	volatile uint8_t *b = (volatile uint8_t*)usbcdc_rxbuf;
+	uint8_t c = b[usbcdc_rxbuf_off++];
+	if (usbcdc_rxbuf_off >= usbcdc_rxbuf_cnt) {
+		usb_ptr_rx_clear(EP_IN);
+	}
 	return c;
 }
 

@@ -1,3 +1,5 @@
+#include <libopencm3/stm32/exti.h>
+#include <libopencm3/cm3/nvic.h>
 #include "main.h"
 #include "extuart.h"
 #include "usbcdc.h"
@@ -8,16 +10,19 @@
 
 
 
-static char usb_dbg_buf[USBCDC_PKT_SIZE_DAT] ALIGNED;
 static uint8_t usb_dbg_enabled = 1;
+static uint8_t ser_dbg_enabled = 0;
+static char usb_dbg_buf[USBCDC_PKT_SIZE_DAT] ALIGNED;
+
 static uint8_t usb_dbg_cnt = 0;
 
 
 void DBG(const char *str)
 {
 #ifdef DBG_EXTUART
-	extuart_sendstr(str);
+	if (ser_dbg_enabled) extuart_sendstr(str);
 #endif
+#if 1
 	if (usb_dbg_enabled) {
 		int slen = strlen(str);
 		int tlen = usb_dbg_cnt + slen;
@@ -39,6 +44,7 @@ void DBG(const char *str)
 			usb_dbg_cnt = dc;
 		}
 	}
+#endif
 }
 
 void dbg_usb_flush(void)
@@ -64,6 +70,38 @@ void dbg_present_val(const char* reg, uint32_t v)
 	DBG(buf);
 }
 
+void dbg_init(void)
+{
+	exti_set_trigger(EXTI8, EXTI_TRIGGER_RISING);
+	exti_select_source(EXTI8, GPIOB);
+	exti_reset_request(EXTI8);
+	exti_enable_request(EXTI8);
+	nvic_enable_irq(NVIC_EXTI4_15_IRQ);
+
+}
+
+static void fault_print(const char *f, uint32_t* fault_args)
+{
+#ifdef DBG_EXTUART
+	usb_dbg_enabled = 0; // No trust in USB anymore
+	ser_dbg_enabled = 1;
+#endif
+	DBG(f);
+	dbg_present_val("PC: ", fault_args[6] );
+	dbg_present_val(" LR: ", fault_args[5] );
+	dbg_present_val(" PSR: ", fault_args[7] );
+	dbg_present_val(" R12: ", fault_args[4] );
+	dbg_present_val("\r\nR0: ", fault_args[0] );
+	dbg_present_val(" R1: ", fault_args[1] );
+	dbg_present_val(" R2: ", fault_args[2] );
+	dbg_present_val(" R3: ", fault_args[3] );
+#ifndef DBG_EXTUART
+	dbg_usb_flush();
+#endif
+
+
+}
+
 
 static void signal_fault(void) __attribute__((naked));
 static void signal_fault(void)
@@ -81,17 +119,8 @@ static void signal_fault(void)
 	        "2:\n\t"
 	        : [args] "=r" (hardfault_args)
 	);
-	usb_dbg_enabled = 0; // No trust in USB anymore
+	fault_print("\r\nFAULT\r\n", hardfault_args);
 
-	DBG("\r\nFAULT\r\n");
-	dbg_present_val("PC: ", hardfault_args[6] );
-	dbg_present_val(" LR: ", hardfault_args[5] );
-	dbg_present_val(" PSR: ", hardfault_args[7] );
-	dbg_present_val(" R12: ", hardfault_args[4] );
-	dbg_present_val("\r\nR0: ", hardfault_args[0] );
-	dbg_present_val(" R1: ", hardfault_args[1] );
-	dbg_present_val(" R2: ", hardfault_args[2] );
-	dbg_present_val(" R3: ", hardfault_args[3] );
 
 	while (1) {
 		uint16_t v = gpio_get(GPIOB, GPIO8);
@@ -101,8 +130,41 @@ static void signal_fault(void)
 }
 
 
+void boot_trap_isr(void) __attribute__((naked));
+void boot_trap_isr(void) {
+	uint32_t *args;
+	asm volatile (
+	        "movs r0,#4\n\t"
+	        "movs r1, lr\n"
+	        "tst r0, r1\n\t"
+	        "beq 1f\n\t"
+	        "mrs %[args], psp\n\t"
+	        "b 2f\n\t"
+	        "1:\n\t"
+	        "mrs %[args], msp\n\t"
+	        "2:\n\t"
+	        : [args] "=r" (args)
+	);
+	fault_print("\r\nEXTI\r\n", args);
+
+	try_go_bootloader();
+
+	while (1) {
+		uint16_t v = gpio_get(GPIOB, GPIO8);
+		while (v == gpio_get(GPIOB, GPIO8));
+		try_go_bootloader();
+	}
+}
+
+void exti4_15_isr(void)
+__attribute__ ((alias ("boot_trap_isr")));
+
+
+
+
 void nmi_handler(void)
 __attribute__ ((alias ("signal_fault")));
 
 void hard_fault_handler(void)
 __attribute__ ((alias ("signal_fault")));
+

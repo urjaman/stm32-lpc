@@ -6,4 +6,6 @@ void DBG(const char* str);
 void dbg_usb_flush(void);
 
 
+void dbg_init(void);
+
 #endif

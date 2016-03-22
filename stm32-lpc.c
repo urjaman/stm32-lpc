@@ -74,6 +74,7 @@ void main(void)
 	clocks_setup();
 	gpio_setup();
 	extuart_init();
+	dbg_init();
 	DBG("Hi!\r\n");
 	usbcdc_init();
 	DBG("USB CDC Initialized\r\n");
