@@ -8,6 +8,7 @@
 #include <libopencm3/usb/cdc.h>
 #include <libopencm3/stm32/st_usbfs.h>
 #include <libopencm3/stm32/desig.h>
+#include <libopencm3/cm3/cortex.h>
 #include "main.h"
 #include "usbopt.h"
 #include "usbdma.h"
@@ -411,9 +412,12 @@ static void cdcacm_reset(void)
 	usb_ready = false;
 }
 
+static void ep1_rx_callback(usbd_device *usb_dev, uint8_t ep);
+
 static void cdcacm_set_config(usbd_device *usbd_dev, uint16_t wValue)
 {
-	usbd_ep_setup(usbd_dev, EP_IN , USB_ENDPOINT_ATTR_BULK, 64, NULL);
+	usbd_ep_setup(usbd_dev, EP_IN , USB_ENDPOINT_ATTR_BULK, 64, ep1_rx_callback);
+//	usbd_ep_setup(usbd_dev, EP_IN , USB_ENDPOINT_ATTR_BULK, 64, NULL);
 	usbd_ep_setup(usbd_dev, EP_OUT, USB_ENDPOINT_ATTR_BULK, 64, NULL);
 	usbd_ep_setup(usbd_dev, EP_INT, USB_ENDPOINT_ATTR_INTERRUPT, 16, NULL);
 
@@ -494,17 +498,37 @@ void usbcdc_putc(uint8_t c)
 }
 
 /* We need to maintain a RX user buffer since libopencm3 will throw rest of the packet away. */
-static uint8_t usbcdc_rxbuf[USBCDC_PKT_SIZE_DAT] ALIGNED;
-static uint8_t usbcdc_rxbuf_cnt = 0;
-static uint8_t usbcdc_rxbuf_off = 0; /* Indicates empty buffer */
 
-static void ep0_rx(void)
+#define RX_SLOTS 4
+static uint8_t usbcdc_rxbuf[RX_SLOTS][USBCDC_PKT_SIZE_DAT] ALIGNED;
+static uint8_t usbcdc_rxbuf_cnt[RX_SLOTS];
+static uint8_t usbcdc_rxb_rslot = 0;
+static volatile uint8_t usbcdc_rxb_wslot = 0;
+
+static uint8_t usbcdc_rxbuf_off = 0;
+
+
+
+
+static void ep1_rx(void)
 {
-	if (usbcdc_rxbuf_off>=usbcdc_rxbuf_cnt) {
-		usbcdc_rxbuf_off = 0;
-		usbcdc_rxbuf_cnt = usbopt_copy_rx(EP_IN, (uint16_t*)usbcdc_rxbuf);
+	uint8_t nslot = (usbcdc_rxb_wslot+1) % RX_SLOTS;
+	if (nslot != usbcdc_rxb_rslot) {
+		int l = usbopt_copy_rx(EP_IN, (uint16_t*)usbcdc_rxbuf[nslot]);
+		if (l) {
+			usbcdc_rxbuf_cnt[nslot] = l;
+			usbcdc_rxb_wslot = nslot;
+		}
 	}
 }
+
+
+static void ep1_rx_callback(usbd_device *usb_dev, uint8_t ep)
+{
+	USB_CLR_EP_RX_CTR(ep);
+	ep1_rx();
+}
+
 
 
 static uint16_t usbcdc_fetch_packet(void)
@@ -515,9 +539,8 @@ static uint16_t usbcdc_fetch_packet(void)
 	}
 	//DBG("FTCH");
 	/* Blocking read. Assume RX user buffer is empty. TODO: consider setting a timeout */
-	while (usbcdc_rxbuf_off>=usbcdc_rxbuf_cnt) {
+	while (usbcdc_rxb_rslot == usbcdc_rxb_wslot) {
 		uint16_t dummy;
-		ep0_rx();
 		//DBG("X");
 		usbd_ep_read_packet(usbd_dev, EP2_IN, &dummy, 2);
 		//DBG("Y");
@@ -525,17 +548,23 @@ static uint16_t usbcdc_fetch_packet(void)
 		//DBG("Z");
 		yield();
 	}
-//	dbg_present_val("C: ", usbcdc_rxbuf_cnt);
+	uint8_t nslot = (usbcdc_rxb_rslot+1) % RX_SLOTS;
+	usbcdc_rxb_rslot = nslot;
+	usbcdc_rxbuf_off = 0;
+	/* If there was a "skipped" callback due to slots full, give it a kick from here. */
+	cm_disable_interrupts();
+	ep1_rx();
+	cm_enable_interrupts();
 	return 1;
 }
 
 uint8_t usbcdc_getc(void)
 {
 	uint8_t c;
-	if (usbcdc_rxbuf_off>=usbcdc_rxbuf_cnt) {
+	if (usbcdc_rxbuf_off>=usbcdc_rxbuf_cnt[usbcdc_rxb_rslot]) {
 		usbcdc_fetch_packet();
 	}
-	c = usbcdc_rxbuf[usbcdc_rxbuf_off++];
+	c = usbcdc_rxbuf[usbcdc_rxb_rslot][usbcdc_rxbuf_off++];
 	return c;
 }
 
