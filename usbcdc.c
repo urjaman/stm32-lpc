@@ -453,7 +453,7 @@ static const char *usb_strings[] = {
 
 void usbcdc_init(void)
 {
-//	usbdma_setup();
+	usbdma_setup();
 
 	desig_get_unique_id_as_string(serial, UID_LEN);
 
@@ -508,14 +508,12 @@ static volatile uint8_t usbcdc_rxb_wslot = 0;
 static uint8_t usbcdc_rxbuf_off = 0;
 
 
-
-
 static void ep1_rx(void)
 {
 	uint8_t nslot = (usbcdc_rxb_wslot+1) % RX_SLOTS;
 	if (nslot != usbcdc_rxb_rslot) {
-		int l = usbopt_copy_rx(EP_IN, (uint16_t*)usbcdc_rxbuf[nslot]);
-		if (l) {
+		uint16_t l;
+		if ((l=usbopt_copy_rx(EP_IN, (uint16_t*)usbcdc_rxbuf[nslot]))) {
 			usbcdc_rxbuf_cnt[nslot] = l;
 			usbcdc_rxb_wslot = nslot;
 		}

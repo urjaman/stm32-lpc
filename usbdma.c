@@ -53,10 +53,11 @@ void usbdma_setup(void) {
 
 
 static mutex_t dma_rx_busy = MUTEX_UNLOCKED;
+static void (*dma_rx_cb)(uint16_t) = 0;
+static uint16_t dma_rx_len = 0;
 static uint8_t dma_rx_addr = 0;
 
-
-uint16_t usbdma_start_rx(uint8_t addr,uint8_t *buf) {
+uint16_t usbdma_start_rx(uint8_t addr, void(*cb)(uint16_t), uint8_t *buf) {
 	if (mutex_trylock(&dma_rx_busy)) {
 		if ((*USB_EP_REG(addr) & USB_EP_RX_STAT) == USB_EP_RX_STAT_VALID) {
 			mutex_unlock(&dma_rx_busy);
@@ -68,9 +69,12 @@ uint16_t usbdma_start_rx(uint8_t addr,uint8_t *buf) {
 		if (lenw<=1) {
 			*(uint16_t*)buf = *tb;
 			USB_SET_EP_RX_STAT(addr, USB_EP_RX_STAT_VALID);
+			if (cb) cb(len);
 			mutex_unlock(&dma_rx_busy);
 			return len;
 		}
+		dma_rx_len = len;
+		dma_rx_cb = cb;
 		dma_rx_addr = addr;
 		dma_set_number_of_data(DMA1, DMA_CHANNEL2, lenw);
 		dma_set_peripheral_address(DMA1, DMA_CHANNEL2, (uint32_t)tb);
@@ -124,6 +128,7 @@ void dma1_channel2_3_isr(void) {
 		USB_SET_EP_RX_STAT(dma_rx_addr, USB_EP_RX_STAT_VALID);
 		dma_disable_channel(DMA1, DMA_CHANNEL2);
 		dma_clear_interrupt_flags(DMA1, DMA_CHANNEL2, DMA_TCIF);
+		if (dma_rx_cb) dma_rx_cb(dma_rx_len);
 		mutex_unlock(&dma_rx_busy);
 	}
 
