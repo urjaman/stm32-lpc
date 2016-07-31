@@ -10,6 +10,7 @@
 #include "usbcdc.h"
 #include "frser.h"
 #include "debug.h"
+#include "dmacopy.h"
 
 static void clocks_setup(void)
 {
@@ -76,6 +77,7 @@ void main(void)
 	extuart_init();
 	dbg_init();
 	DBG("Hi!\r\n");
+	dmacpy_setup();
 	usbcdc_init();
 	DBG("USB CDC Initialized\r\n");
 	cm_enable_interrupts();
