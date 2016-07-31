@@ -11,7 +11,7 @@
 #define NOINLINE __attribute__((noinline))
 #define NORETURN  __attribute__((noreturn))
 #define ALIGNED __attribute__((aligned(4)))
-
+#define UNUSED __attribute__((unused))
 
 #define PORT_LED GPIOF
 #define PIN_LED GPIO0

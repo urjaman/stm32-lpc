@@ -11,7 +11,9 @@
 
 
 static uint8_t usb_dbg_enabled = 1;
+#ifdef DBG_EXTUART
 static uint8_t ser_dbg_enabled = 1;
+#endif
 static char usb_dbg_buf[USBCDC_PKT_SIZE_DAT] ALIGNED;
 
 static uint8_t usb_dbg_cnt = 0;
