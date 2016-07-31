@@ -12,6 +12,7 @@
 #include "main.h"
 #include "debug.h"
 
+#include "usbopt.h"
 
 #define UID_LEN  (12 * 2 + 1) /* 12-byte, each byte turnned into 2-byte hex, then '\0'. */
 
@@ -469,7 +470,7 @@ uint16_t usbcdc_write(void *buf, size_t len)
 	uint16_t ret;
 
 	/* Blocking write */
-	while (0 == (ret = usbd_ep_write_packet(usbd_dev, EP_OUT, buf, len)));
+	while (0 == (ret = usbopt_ep_write_packet(usbd_dev, EP_OUT, buf, len)));
 	return ret;
 }
 
@@ -506,7 +507,7 @@ static void ep1_rx(void)
 		if ((l=usbd_ep_read_packet(usbd_dev, EP_IN, usbcdc_rxbuf[nslot], USBCDC_PKT_SIZE_DAT))) {
 			usbcdc_rxbuf_cnt[nslot] = l;
 			usbcdc_rxb_wslot = nslot;
-			DBG("-READ-");
+//			DBG("-READ-");
 		}
 	}
 }
@@ -515,7 +516,7 @@ static void ep1_rx(void)
 static void ep1_rx_callback(usbd_device *usb_dev UNUSED, uint8_t ep)
 {
 	USB_CLR_EP_RX_CTR(ep);
-	DBG("RXC-");
+//	DBG("RXC-");
 	ep1_rx();
 }
 
@@ -526,7 +527,7 @@ static uint16_t usbcdc_fetch_packet(void)
                usbcdc_write(usbcdc_txbuf, usbcdc_txbuf_cnt);
                usbcdc_txbuf_cnt = 0;
 	}
-	DBG("-FTCH");
+//	DBG("-FTCH");
 	/* Blocking read. Assume RX user buffer is empty. TODO: consider setting a timeout */
 	while (usbcdc_rxb_rslot == usbcdc_rxb_wslot) {
 		uint16_t dummy;
@@ -552,7 +553,7 @@ uint8_t usbcdc_getc(void)
 	if (usbcdc_rxbuf_off>=usbcdc_rxbuf_cnt[usbcdc_rxb_rslot]) {
 		usbcdc_fetch_packet();
 		usbcdc_rxbuf_off = 0;
-		DBG("-ED.");
+//		DBG("-ED.");
 	}
 	c = usbcdc_rxbuf[usbcdc_rxb_rslot][usbcdc_rxbuf_off++];
 	return c;
