@@ -32,8 +32,8 @@ LDFLAGS		+= --static -nostartfiles -L$(LIB_DIR) -T$(LDSCRIPT) -Wl,--gc-sections
 LDLIBS		+= -l$(LIBNAME) -Wl,--start-group -lc -lgcc -lnosys -Wl,--end-group
 
 # Our actual source files...
-SOURCES		= stm32-lpc.c usbcdc.c extuart.c delay.c flash.c debug.c mutex.c dmacopy.c usbopt.c
-DEPS		= extuart.h flash.h main.h uart.h usbcdc.h debug.h mutex.h dmacopy.h usbopt.h
+SOURCES		= stm32-lpc.c usbcdc.c extuart.c delay.c flash.c debug.c mutex.c dmacopy.c usbopt.c tasker.c
+DEPS		= extuart.h flash.h main.h uart.h usbcdc.h debug.h mutex.h dmacopy.h usbopt.h tasker.h
 
 #libfrser
 include	libfrser/Makefile.frser
@@ -65,6 +65,9 @@ clean:
 
 objdump: elf
 	$(OBJDUMP) -xdC $(BINARY).elf | less
+
+objdumpS: elf
+	$(OBJDUMP) -xdSC $(BINARY).elf | less
 
 size: elf
 	$(PREFIX)-size $(BINARY).elf

@@ -20,6 +20,8 @@
 #define DEV_PID    0x5740 /* STM32 */
 #define DEV_VER    0x0009 /* 0.9 */
 
+/* NOTE: These IN/OUT are backwards to how they're supposed to be backwards. Double whammy. */
+
 /* Serprog channel */
 #define EP_INT     0x83
 #define EP_OUT     0x82
@@ -415,7 +417,7 @@ static void ep1_rx_callback(usbd_device *usb_dev UNUSED, uint8_t ep);
 static void cdcacm_set_config(usbd_device *usbd_dev, uint16_t wValue)
 {
 	usbd_ep_setup(usbd_dev, EP_IN , USB_ENDPOINT_ATTR_BULK, 64, ep1_rx_callback);
-	usbd_ep_setup(usbd_dev, EP_OUT, USB_ENDPOINT_ATTR_BULK, 64, NULL);
+	usbd_ep_setup(usbd_dev, EP_OUT, USB_ENDPOINT_ATTR_BULK|USB_ENDPOINT_ATTR_DBLBUF, 64, NULL);
 	usbd_ep_setup(usbd_dev, EP_INT, USB_ENDPOINT_ATTR_INTERRUPT, 16, NULL);
 
 	usbd_ep_setup(usbd_dev, EP2_IN , USB_ENDPOINT_ATTR_BULK, 64, NULL);
@@ -480,13 +482,13 @@ uint16_t usbcdc_write_ch3(void *buf, size_t len)
 }
 
 
-static uint8_t usbcdc_txbuf[USBCDC_PKT_SIZE_DAT] ALIGNED;
+static uint8_t usbcdc_txbuf[256] ALIGNED;
 static uint8_t usbcdc_txbuf_cnt = 0;
 
 void usbcdc_putc(uint8_t c)
 {
        usbcdc_txbuf[usbcdc_txbuf_cnt++] = c;
-       if (usbcdc_txbuf_cnt >= USBCDC_PKT_SIZE_DAT) {
+       if (usbcdc_txbuf_cnt >= (128)) {
                usbcdc_write(usbcdc_txbuf, usbcdc_txbuf_cnt);
                usbcdc_txbuf_cnt = 0;
 	}
@@ -499,23 +501,28 @@ static uint8_t usbcdc_rxbuf_cnt[RX_SLOTS];
 static volatile uint8_t usbcdc_rxb_wslot = 0;
 static uint8_t usbcdc_rxb_rslot = 0;
 
+static void ep1_rx_cb(int len)
+{
+	uint8_t nslot = (usbcdc_rxb_wslot+1) & (RX_SLOTS-1);
+	usbcdc_rxbuf_cnt[nslot] = len;
+	usbcdc_rxb_wslot = nslot;
+//			DBG("-READ-");
+}
+
 static void ep1_rx(void)
 {
 	uint8_t nslot = (usbcdc_rxb_wslot+1) & (RX_SLOTS-1);
 	if (nslot != usbcdc_rxb_rslot) {
 		uint16_t l;
 		if ((l=usbd_ep_read_packet(usbd_dev, EP_IN, usbcdc_rxbuf[nslot], USBCDC_PKT_SIZE_DAT))) {
-			usbcdc_rxbuf_cnt[nslot] = l;
-			usbcdc_rxb_wslot = nslot;
-//			DBG("-READ-");
+			ep1_rx_cb(l);
 		}
 	}
 }
 
 
-static void ep1_rx_callback(usbd_device *usb_dev UNUSED, uint8_t ep)
+static void ep1_rx_callback(usbd_device *usb_dev UNUSED, uint8_t ep UNUSED)
 {
-	USB_CLR_EP_RX_CTR(ep);
 //	DBG("RXC-");
 	ep1_rx();
 }

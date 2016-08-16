@@ -42,6 +42,14 @@ void dma1_channel1_isr(void) {
 int dmacpy_w(void *dest, const void* src, size_t words, void(*cb)(int))
 {
 	while (dmacpy_cb) yield();
+#if 0
+	// it sounds like it'd make sense to avoid the programming of the DMAC and ISR for tiny transfers, but benchmark later...
+	if (words<=1) {
+		*(uint16_t*)dest = *(uint16_t*)src;
+		cb(0);
+		return 0;
+	}
+#endif
 	dmacpy_cb = cb;
 	dma_set_number_of_data(DMA1, DMA_CHANNEL1, words);
 	dma_set_peripheral_address(DMA1, DMA_CHANNEL1, (uint32_t)src);

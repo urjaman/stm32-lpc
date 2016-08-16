@@ -12,6 +12,8 @@
 #define NORETURN  __attribute__((noreturn))
 #define ALIGNED __attribute__((aligned(4)))
 #define UNUSED __attribute__((unused))
+#define STACK_ALIGN __attribute__((aligned(8)))
+
 
 #define PORT_LED GPIOF
 #define PIN_LED GPIO0

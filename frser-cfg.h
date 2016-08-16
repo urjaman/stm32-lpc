@@ -3,7 +3,7 @@
 
 /* What kind of buses your flasher supports. I assume if it can LPC it can FWH too. */
 /* You can override that with FORCE_BUSTYPE if you cant (weirdo hardware duuude :P) */
-//#define FRSER_FEAT_PARALLEL
+#define FRSER_FEAT_PARALLEL
 #define FRSER_FEAT_LPCFWH
 //#define FRSER_FEAT_SPI
 
@@ -12,7 +12,7 @@
 /* Safety feature, calls set_uart_timeout with a jmp_buf to longjmp to in case of timeout. */
 //#define FRSER_FEAT_UART_TIMEOUT
 /* If your system is capable of autodetecting the actual attached chip bustype. */
-#define FRSER_FEAT_DYNPROTO
+//#define FRSER_FEAT_DYNPROTO
 /* If your system is capable of turning on/off chip drivers. */
 #define FRSER_FEAT_PIN_STATE
 /* If you have a debug console you'd want frser to call upon space bar. */
@@ -35,7 +35,7 @@
 //#define FRSER_OPBUF_LEN 1024
 
 /* If you want to override the read-n max len (default based on BAUD or 64k), define this: */
-//#define FRSER_READ_N_MAX (64*1024)
+#define FRSER_READ_N_MAX (2048*1024)
 
 /* Hooks that are run (and only run) before and after the RECEIVE() for the operation. *
  * Do not access any local variables in the frser_main function.

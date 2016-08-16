@@ -33,6 +33,7 @@ void flash_select_protocol(uint8_t allowed_protocols)
 {
 	allowed_protocols &= SUPPORTED_BUSTYPES;
 	flash_set_safe();
+#if 1
 	if ((allowed_protocols&CHIP_BUSTYPE_LPC)&&(lpc_test())) {
 		DBG("F:LPC\r\n");
 		flash_prot_in_use = CHIP_BUSTYPE_LPC;
@@ -44,6 +45,7 @@ void flash_select_protocol(uint8_t allowed_protocols)
 		flash_prot_in_use = CHIP_BUSTYPE_FWH;
 		return;
 	}
+#endif
 	DBG("F:NONE\r\n");
 	flash_prot_in_use = 0;
 	return;
